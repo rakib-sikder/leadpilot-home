@@ -66,9 +66,11 @@
   }
   .icon.dash { background: rgba(79,140,255,0.15); }
   .icon.ext  { background: rgba(34,197,94,0.15); }
+  .icon.remote { background: rgba(168,85,247,0.16); }
   .item .label { font-size: 15px; font-weight: 600; }
   .item .desc { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
   .item .go { margin-left: auto; color: var(--muted); font-size: 18px; }
+  a.item[aria-disabled="true"] { opacity: .58; cursor: wait; }
   footer {
     text-align: center;
     margin-top: 20px;
@@ -103,8 +105,52 @@
         </div>
         <div class="go">›</div>
       </a>
+      <a class="item" id="leadpilotRemote" href="#" aria-disabled="true">
+        <div class="icon remote">💬</div>
+        <div>
+          <div class="label">LeadPilot Remote</div>
+          <div class="desc" id="leadpilotStatus">Checking your LeadPilot PC…</div>
+        </div>
+        <div class="go">›</div>
+      </a>
     </div>
     <footer>leadautopilot.mooo.com</footer>
   </div>
+  <script>
+    const remote = document.getElementById('leadpilotRemote');
+    const remoteStatus = document.getElementById('leadpilotStatus');
+    let remoteUrl = '';
+
+    fetch('leadpilot-url.json?t=' + Date.now(), { cache: 'no-store' })
+      .then(response => {
+        if (!response.ok) throw new Error('status unavailable');
+        return response.json();
+      })
+      .then(state => {
+        const url = String(state.url || '');
+        if (!/^https:\/\/[a-z0-9-]+\.trycloudflare\.com\/?$/i.test(url)) {
+          throw new Error('invalid remote address');
+        }
+        remoteUrl = url;
+        remote.href = url;
+        remote.target = '_blank';
+        remote.rel = 'noopener';
+        remote.removeAttribute('aria-disabled');
+        remoteStatus.textContent = state.online === false
+          ? 'PC is reconnecting — tap to retry'
+          : 'Messages and leads — password required';
+      })
+      .catch(() => {
+        remote.setAttribute('aria-disabled', 'true');
+        remoteStatus.textContent = 'LeadPilot PC is offline';
+      });
+
+    remote.addEventListener('click', event => {
+      if (!remoteUrl) {
+        event.preventDefault();
+        alert('LeadPilot is offline. Keep the main PC and internet connection on.');
+      }
+    });
+  </script>
 </body>
 </html>
