@@ -105,52 +105,17 @@
         </div>
         <div class="go">›</div>
       </a>
-      <a class="item" id="leadpilotRemote" href="#" aria-disabled="true">
+      <a class="item" id="leadpilotRemote" href="https://rakib-sikder.github.io/leadpilot-remote/"
+         target="_blank" rel="noopener">
         <div class="icon remote">💬</div>
         <div>
           <div class="label">LeadPilot Remote</div>
-          <div class="desc" id="leadpilotStatus">Checking your LeadPilot PC…</div>
+          <div class="desc" id="leadpilotStatus">Secure remote gateway — password required</div>
         </div>
         <div class="go">›</div>
       </a>
     </div>
     <footer>leadautopilot.mooo.com</footer>
   </div>
-  <script>
-    const remote = document.getElementById('leadpilotRemote');
-    const remoteStatus = document.getElementById('leadpilotStatus');
-    let remoteUrl = '';
-
-    fetch('leadpilot-url.json?t=' + Date.now(), { cache: 'no-store' })
-      .then(response => {
-        if (!response.ok) throw new Error('status unavailable');
-        return response.json();
-      })
-      .then(state => {
-        const url = String(state.url || '');
-        if (!/^https:\/\/[a-z0-9-]+\.trycloudflare\.com\/?$/i.test(url)) {
-          throw new Error('invalid remote address');
-        }
-        remoteUrl = url;
-        remote.href = url;
-        remote.target = '_blank';
-        remote.rel = 'noopener';
-        remote.removeAttribute('aria-disabled');
-        remoteStatus.textContent = state.online === false
-          ? 'PC is reconnecting — tap to retry'
-          : 'Messages and leads — password required';
-      })
-      .catch(() => {
-        remote.setAttribute('aria-disabled', 'true');
-        remoteStatus.textContent = 'LeadPilot PC is offline';
-      });
-
-    remote.addEventListener('click', event => {
-      if (!remoteUrl) {
-        event.preventDefault();
-        alert('LeadPilot is offline. Keep the main PC and internet connection on.');
-      }
-    });
-  </script>
 </body>
 </html>
