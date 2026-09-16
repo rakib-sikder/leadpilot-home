@@ -113,7 +113,7 @@
     <p class="tagline">Messages, leads, and the funnel — from anywhere.</p>
 
     <a class="go" id="openBtn" href="https://rakib-sikder.github.io/leadpilot-remote/"
-       aria-disabled="true">
+       aria-disabled="true" rel="noreferrer noopener">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
            stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
       <span id="openLabel">Checking…</span>
@@ -129,11 +129,27 @@
   </div>
 
 <script>
-  // The gateway's own status file — the same one it uses to redirect once
-  // you're through. Checking it here means an offline PC says so before the
-  // tap, not after, and a reachable one skips the extra hop when it can.
-  var STATUS_URL = 'https://rakib-sikder.github.io/leadpilot-remote/leadpilot-url.json';
-  var GATEWAY_URL = 'https://rakib-sikder.github.io/leadpilot-remote/';
+  // Straight through to the sign-in form, on whichever machine is actually up.
+  //
+  // There are two now: the PC runs the whole app, and the VPS collects leads while
+  // the PC is off. This page used to read the PC's published `online` flag and stop
+  // there — which was wrong twice over. It did not know the VPS existed, so a PC
+  // that was off read as "LeadPilot is offline" when leads were still being
+  // collected; and the flag itself is only written when the PC shuts down *cleanly*,
+  // so a power cut or a sleep leaves it claiming to be online at a dead address.
+  //
+  // So neither flag is trusted: both machines are asked directly. A dead quick
+  // tunnel is not a dead hostname — the name still resolves and Cloudflare still
+  // answers it with an error page — so the test has to be a reply that only
+  // LeadPilot could have written. That is what /ping is for.
+  //
+  // The PC wins when both answer: it has Messages and the funnel, the VPS has only
+  // the lead collector.
+  var BASE = 'https://rakib-sikder.github.io/leadpilot-remote/';
+  var LOCAL_STATE = BASE + 'leadpilot-url.json';
+  var VPS_STATE = BASE + 'vps-url.json';
+  var CLOUDFLARE = /^https:\/\/[a-z0-9-]+\.trycloudflare\.com\/?$/i;
+  var PROBE_MS = 6000;
 
   var btn = document.getElementById('openBtn');
   var label = document.getElementById('openLabel');
@@ -141,39 +157,77 @@
   var statusText = document.getElementById('statusText');
   var retryBtn = document.getElementById('retryBtn');
 
-  function setChecking() {
-    status.className = 'status checking';
-    statusText.textContent = 'Checking LeadPilot…';
-    label.textContent = 'Checking…';
-    btn.setAttribute('aria-disabled', 'true');
+  function readState(file) {
+    return fetch(file + '?t=' + Date.now(), { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (s) {
+        var url = String((s || {}).url || '').replace(/\/?$/, '/');
+        return CLOUDFLARE.test(url) ? url : '';
+      })
+      .catch(function () { return ''; });
+  }
+
+  function probe(base, pingPath) {
+    if (!base) return Promise.resolve(false);
+    var done = false;
+    return new Promise(function (resolve) {
+      var timer = setTimeout(function () { if (!done) { done = true; resolve(false); } }, PROBE_MS);
+      fetch(base + pingPath + '?t=' + Date.now(), { cache: 'no-store' })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (j) {
+          if (done) return;
+          done = true; clearTimeout(timer);
+          resolve(!!(j && j.app === 'leadpilot'));
+        })
+        .catch(function () {
+          if (done) return;
+          done = true; clearTimeout(timer);
+          resolve(false);
+        });
+    });
+  }
+
+  function go(base, kind) {
+    var target = base + 'login';
+    btn.href = target;
+    btn.removeAttribute('aria-disabled');
+    status.className = 'status online';
+    if (kind === 'main') {
+      statusText.textContent = 'Main PC is online — opening sign-in';
+      label.textContent = 'Open LeadPilot';
+    } else {
+      statusText.textContent = 'Main PC is off — opening the backup server';
+      label.textContent = 'Open backup server';
+    }
+    // A short beat so the line above is readable rather than a flash, then go.
+    setTimeout(function () { location.replace(target); }, kind === 'main' ? 400 : 1200);
+  }
+
+  function nobody() {
+    status.className = 'status offline';
+    statusText.textContent = 'Neither machine is reachable right now';
+    label.textContent = 'Try anyway';
+    btn.href = BASE;
+    btn.removeAttribute('aria-disabled');
   }
 
   function check() {
-    setChecking();
-    fetch(STATUS_URL, { cache: 'no-store' })
-      .then(function (r) { return r.json(); })
-      .then(function (d) {
-        if (d && d.online) {
-          status.className = 'status online';
-          statusText.textContent = 'LeadPilot is online';
-          label.textContent = 'Open LeadPilot';
-          btn.removeAttribute('aria-disabled');
-          btn.href = GATEWAY_URL;
-        } else {
-          offline();
-        }
-      })
-      .catch(offline);
-  }
+    status.className = 'status checking';
+    statusText.textContent = 'Finding your machines…';
+    label.textContent = 'Checking…';
+    btn.setAttribute('aria-disabled', 'true');
 
-  function offline() {
-    status.className = 'status offline';
-    statusText.textContent = 'LeadPilot looks offline right now';
-    label.textContent = 'Try anyway';
-    // Not fully disabled — the status check itself can be wrong (a CDN
-    // hiccup, a stale cache), and the gateway is the real source of truth.
-    btn.removeAttribute('aria-disabled');
-    btn.href = GATEWAY_URL;
+    Promise.all([readState(LOCAL_STATE), readState(VPS_STATE)])
+      .then(function (urls) {
+        statusText.textContent = 'Checking which one is up…';
+        return Promise.all([probe(urls[0], 'api/ping'), probe(urls[1], 'ping')])
+          .then(function (up) {
+            if (up[0]) return go(urls[0], 'main');
+            if (up[1]) return go(urls[1], 'backup');
+            nobody();
+          });
+      })
+      .catch(nobody);
   }
 
   retryBtn.addEventListener('click', check);
