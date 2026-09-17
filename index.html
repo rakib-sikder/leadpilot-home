@@ -1,237 +1,176 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="color-scheme" content="dark">
-<meta name="theme-color" content="#131314">
-<title>LeadAutoPilot</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%237fd8cd'/%3E%3Cpath d='M7 12l4 4 6-8' stroke='%2304332e' stroke-width='2.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>LeadPilot</title>
 <style>
-  /* One destination now, not a menu. The old page listed three links — two of
-     them a VPS dashboard and a VNC remote desktop that only made sense while
-     debugging the collector directly. This page has exactly one job: get you
-     into LeadPilot, as fast as the connection allows, and say plainly if it
-     can't right now. The same palette as the app itself (see
-     app/ui/src/styles.css's dark tokens) rather than this page's own guess at
-     one, because it is the front door to the same product. */
-  :root {
-    --bg: #131314; --surface: #1e1f20; --surface-2: #2a2b2e;
-    --border: #38393c; --border-2: #4c4d51;
-    --ink: #e6e6e6; --muted: #c4c7ce; --faint: #9aa0a6;
-    --p: #7fd8cd; --p-on: #04332e; --p-soft: #163d35;
-    --ok: #7cd992; --ok-bg: #16281c; --ok-line: #2c4a34;
-    --bad: #f2b8b5; --bad-bg: #3c1d1c; --bad-line: #5c2c29;
-    --ease: cubic-bezier(.2, 0, 0, 1);
-  }
-  * { box-sizing: border-box; }
-  html, body { height: 100%; }
-  body {
-    margin: 0;
-    display: grid; place-items: center;
-    background: var(--bg);
-    color: var(--ink);
-    font: 400 15px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    padding: 24px;
-    -webkit-font-smoothing: antialiased;
-  }
-  .wrap { width: 100%; max-width: 380px; text-align: center; }
+/* Same tokens as the two sign-in pages. Three repositories, no shared
+   stylesheet, kept identical by hand — this page and the one it hands you to
+   have to look like the same place or the handover reads as a redirect to
+   somewhere else. Two blues on purpose: white on #3B82F6 is 3.68:1 and fails on
+   a button, so filled actions use #2563EB (5.17:1) and the lighter one is for
+   accents and the focus ring. */
+:root{
+  --bg:#0B0F17;--surface:#192436;--line:#243047;
+  --tx:#E8EDF5;--tx-dim:#94A3B8;--tx-faint:#7A89A2;
+  --p:#2563EB;--p-lit:#3B82F6;--p-soft:rgba(59,130,246,.12);
+  --ok:#34D399;--warn:#FBBF24;--bad:#F87171;
+  --r:14px;color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;min-height:100dvh;display:grid;place-items:center;
+  padding:24px;background:radial-gradient(1200px 600px at 50% -10%,#16223A 0,var(--bg) 60%);
+  color:var(--tx);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased}
+.card{width:min(100%,380px);padding:32px 28px;background:var(--surface);
+  border:1px solid var(--line);border-radius:var(--r);
+  box-shadow:0 24px 60px rgba(0,0,0,.45);text-align:center}
+.mark{width:44px;height:44px;margin:0 auto 16px;display:grid;place-items:center;
+  border-radius:12px;background:linear-gradient(140deg,#3B82F6,#7C3AED);
+  font-weight:700;font-size:15px;letter-spacing:.02em;color:#fff}
+h1{margin:0;font-size:26px;line-height:1.15;font-weight:700;letter-spacing:-.02em}
+.sub{margin:8px 0 0;font-size:13.5px;line-height:1.5;color:var(--tx-dim)}
 
-  .mark {
-    width: 56px; height: 56px; margin: 0 auto 18px;
-    border-radius: 16px;
-    background: var(--p); color: var(--p-on);
-    display: grid; place-items: center;
-    font: 800 20px/1 inherit; letter-spacing: -.02em;
-  }
-  h1 { margin: 0 0 6px; font-size: 22px; letter-spacing: -.01em; }
-  .tagline { margin: 0 0 28px; color: var(--faint); font-size: 13.5px; }
+/* State is carried by the words; the dot only repeats it for people who read
+   shape and colour faster than a sentence. */
+.status{display:flex;align-items:center;justify-content:center;gap:9px;
+  margin:24px 0 0;padding:11px 14px;border-radius:10px;
+  background:rgba(255,255,255,.03);border:1px solid var(--line);
+  font-size:13px;color:var(--tx-dim);min-height:44px;text-align:left}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--tx-faint);flex:none}
+.status.checking .dot{background:var(--p-lit);animation:pulse 1.4s ease-in-out infinite}
+.status.main .dot{background:var(--ok);box-shadow:0 0 0 4px rgba(52,211,153,.14)}
+.status.backup .dot{background:var(--warn);box-shadow:0 0 0 4px rgba(251,191,36,.14)}
+.status.offline .dot{background:var(--bad);box-shadow:0 0 0 4px rgba(248,113,113,.14)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
 
-  /* Fitts's Law: the one thing worth doing on this page should be the
-     easiest target on it — full width, generous height, nothing competing
-     for the tap. */
-  .go {
-    display: flex; align-items: center; justify-content: center; gap: 10px;
-    width: 100%; padding: 16px 20px;
-    border-radius: 14px; border: 0;
-    background: var(--p); color: var(--p-on);
-    font: 700 15.5px/1 inherit; text-decoration: none;
-    transition: transform .12s var(--ease), opacity .12s var(--ease);
-  }
-  .go:hover { opacity: .92; }
-  .go:active { transform: scale(.98); }
-  .go:focus-visible { outline: 2px solid var(--p); outline-offset: 3px; }
-  .go[aria-disabled='true'] { opacity: .5; pointer-events: none; }
-  .go svg { width: 18px; height: 18px; flex: 0 0 auto; }
-
-  /* Visibility of system status: the page checks before you click, so a
-     dead tunnel says so instead of handing you a spinner that never lands. */
-  .status {
-    display: flex; align-items: center; justify-content: center; gap: 7px;
-    margin-top: 16px;
-    padding: 7px 12px;
-    border-radius: 99px; border: 1px solid var(--border);
-    background: var(--surface);
-    font-size: 12px; color: var(--faint);
-    width: fit-content; margin-left: auto; margin-right: auto;
-  }
-  .status .dot {
-    width: 7px; height: 7px; border-radius: 50%;
-    background: var(--faint); flex: 0 0 auto;
-  }
-  .status.checking .dot { animation: pulse 1.1s ease-in-out infinite; }
-  .status.online { border-color: var(--ok-line); background: var(--ok-bg); color: var(--ok); }
-  .status.online .dot { background: var(--ok); }
-  .status.offline { border-color: var(--bad-line); background: var(--bad-bg); color: var(--bad); }
-  .status.offline .dot { background: var(--bad); }
-  @keyframes pulse { 50% { opacity: .35; } }
-
-  .retry {
-    display: none;
-    margin-top: 10px; padding: 8px 14px;
-    border: 1px solid var(--border-2); border-radius: 10px;
-    background: var(--surface-2); color: var(--muted);
-    font: 600 12.5px inherit;
-  }
-  .retry:hover { background: var(--border); color: var(--ink); }
-  .status.offline + .retry { display: inline-block; }
-
-  footer {
-    margin-top: 26px;
-    font-size: 11.5px; color: var(--faint);
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
-  }
+.go{display:grid;place-items:center;width:100%;height:48px;margin:12px 0 0;
+  border-radius:10px;background:var(--p);color:#fff;text-decoration:none;
+  font-weight:600;font-size:15px;transition:transform .12s ease,filter .12s ease}
+.go:hover{filter:brightness(1.08)}
+.go:active{transform:scale(.985)}
+.go:focus-visible{outline:2px solid var(--p-lit);outline-offset:2px}
+.go[aria-disabled="true"]{opacity:.45;pointer-events:none}
+.foot{margin:20px 0 0;font-size:11.5px;line-height:1.5;color:var(--tx-faint)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="mark" aria-hidden="true">LP</div>
-    <h1>LeadAutoPilot</h1>
-    <p class="tagline">Messages, leads, and the funnel — from anywhere.</p>
+<main class="card">
+  <div class="mark" aria-hidden="true">LP</div>
+  <h1>LeadPilot</h1>
+  <p class="sub">One address. It opens whichever machine is running.</p>
 
-    <a class="go" id="openBtn" href="https://rakib-sikder.github.io/leadpilot-remote/"
-       aria-disabled="true" rel="noreferrer noopener">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-           stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-      <span id="openLabel">Checking…</span>
-    </a>
-
-    <div class="status checking" id="status" role="status" aria-live="polite">
-      <span class="dot" aria-hidden="true"></span>
-      <span id="statusText">Checking LeadPilot…</span>
-    </div>
-    <button class="retry" id="retryBtn" type="button">Check again</button>
-
-    <footer>leadautopilot.mooo.com</footer>
+  <div class="status checking" id="status" role="status" aria-live="polite">
+    <span class="dot" aria-hidden="true"></span>
+    <span id="statusText">Finding your machines&hellip;</span>
   </div>
 
+  <a class="go" id="go" href="#" aria-disabled="true">Checking&hellip;</a>
+  <p class="foot" id="foot">Same password on either one.</p>
+</main>
 <script>
-  // Straight through to the sign-in form, on whichever machine is actually up.
-  //
-  // There are two now: the PC runs the whole app, and the VPS collects leads while
-  // the PC is off. This page used to read the PC's published `online` flag and stop
-  // there — which was wrong twice over. It did not know the VPS existed, so a PC
-  // that was off read as "LeadPilot is offline" when leads were still being
-  // collected; and the flag itself is only written when the PC shuts down *cleanly*,
-  // so a power cut or a sleep leaves it claiming to be online at a dead address.
-  //
-  // So neither flag is trusted: both machines are asked directly. A dead quick
-  // tunnel is not a dead hostname — the name still resolves and Cloudflare still
-  // answers it with an error page — so the test has to be a reply that only
-  // LeadPilot could have written. That is what /ping is for.
-  //
-  // The PC wins when both answer: it has Messages and the funnel, the VPS has only
-  // the lead collector.
-  var BASE = 'https://rakib-sikder.github.io/leadpilot-remote/';
-  var LOCAL_STATE = BASE + 'leadpilot-url.json';
-  var VPS_STATE = BASE + 'vps-url.json';
-  var CLOUDFLARE = /^https:\/\/[a-z0-9-]+\.trycloudflare\.com\/?$/i;
-  var PROBE_MS = 6000;
+// Straight through to the sign-in form on whichever machine is actually up.
+//
+// There are two: the PC runs the whole app, and the VPS collects leads while the
+// PC is off. Neither published status file is trusted to say which. The PC writes
+// `online:false` only when it shuts down *cleanly*, so a power cut or a sleep
+// leaves the file claiming it is up at an address that is no longer answering —
+// and a dead quick tunnel is not a dead hostname either: the name still resolves
+// and Cloudflare still replies, with its own error page.
+//
+// So both are asked directly, and the only answer that counts is one only
+// LeadPilot could have written. That is what /ping is for.
+//
+// The PC wins when both answer: it has Messages and the funnel; the VPS has only
+// the lead collector.
+var BASE = 'https://rakib-sikder.github.io/leadpilot-remote/';
+var CLOUDFLARE = /^https:\/\/[a-z0-9-]+\.trycloudflare\.com\/?$/i;
+var PROBE_MS = 6000;
 
-  var btn = document.getElementById('openBtn');
-  var label = document.getElementById('openLabel');
-  var status = document.getElementById('status');
-  var statusText = document.getElementById('statusText');
-  var retryBtn = document.getElementById('retryBtn');
+var statusEl = document.getElementById('status');
+var statusText = document.getElementById('statusText');
+var go = document.getElementById('go');
+var foot = document.getElementById('foot');
 
-  function readState(file) {
-    return fetch(file + '?t=' + Date.now(), { cache: 'no-store' })
+function readState(file) {
+  return fetch(BASE + file + '?t=' + Date.now(), { cache: 'no-store' })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (s) {
+      var url = String((s || {}).url || '').replace(/\/?$/, '/');
+      return CLOUDFLARE.test(url) ? url : '';
+    })
+    .catch(function () { return ''; });
+}
+
+function probe(base, pingPath) {
+  if (!base) return Promise.resolve(false);
+  var settled = false;
+  return new Promise(function (resolve) {
+    var timer = setTimeout(function () {
+      if (!settled) { settled = true; resolve(false); }
+    }, PROBE_MS);
+    fetch(base + pingPath + '?t=' + Date.now(), { cache: 'no-store' })
       .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (s) {
-        var url = String((s || {}).url || '').replace(/\/?$/, '/');
-        return CLOUDFLARE.test(url) ? url : '';
+      .then(function (j) {
+        if (settled) return;
+        settled = true; clearTimeout(timer);
+        resolve(!!(j && j.app === 'leadpilot'));
       })
-      .catch(function () { return ''; });
-  }
+      .catch(function () {
+        if (settled) return;
+        settled = true; clearTimeout(timer);
+        resolve(false);
+      });
+  });
+}
 
-  function probe(base, pingPath) {
-    if (!base) return Promise.resolve(false);
-    var done = false;
-    return new Promise(function (resolve) {
-      var timer = setTimeout(function () { if (!done) { done = true; resolve(false); } }, PROBE_MS);
-      fetch(base + pingPath + '?t=' + Date.now(), { cache: 'no-store' })
-        .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (j) {
-          if (done) return;
-          done = true; clearTimeout(timer);
-          resolve(!!(j && j.app === 'leadpilot'));
-        })
-        .catch(function () {
-          if (done) return;
-          done = true; clearTimeout(timer);
-          resolve(false);
+function send(base, kind) {
+  var target = base + 'login';
+  go.href = target;
+  go.rel = 'noreferrer noopener';
+  go.removeAttribute('aria-disabled');
+  if (kind === 'main') {
+    statusEl.className = 'status main';
+    statusText.textContent = 'Main PC is online';
+    go.textContent = 'Open LeadPilot';
+    foot.textContent = 'Messages, leads and settings.';
+  } else {
+    statusEl.className = 'status backup';
+    statusText.textContent = 'Main PC is off — opening the backup';
+    go.textContent = 'Open backup server';
+    foot.textContent = 'Leads and screenshots only. Same password.';
+  }
+  // Long enough to read the line, short enough not to feel like a stop.
+  setTimeout(function () { location.replace(target); }, kind === 'main' ? 450 : 1300);
+}
+
+function nobody() {
+  statusEl.className = 'status offline';
+  statusText.textContent = 'Neither machine is reachable';
+  go.textContent = 'Try again';
+  go.href = location.href;
+  go.removeAttribute('aria-disabled');
+  foot.textContent = 'Turn the PC on, or check the backup server. Retrying in 15s.';
+  setTimeout(function () { location.reload(); }, 15000);
+}
+
+function run() {
+  Promise.all([readState('leadpilot-url.json'), readState('vps-url.json')])
+    .then(function (urls) {
+      statusText.textContent = 'Checking which one is up…';
+      return Promise.all([probe(urls[0], 'api/ping'), probe(urls[1], 'ping')])
+        .then(function (up) {
+          if (up[0]) return send(urls[0], 'main');
+          if (up[1]) return send(urls[1], 'backup');
+          nobody();
         });
-    });
-  }
-
-  function go(base, kind) {
-    var target = base + 'login';
-    btn.href = target;
-    btn.removeAttribute('aria-disabled');
-    status.className = 'status online';
-    if (kind === 'main') {
-      statusText.textContent = 'Main PC is online — opening sign-in';
-      label.textContent = 'Open LeadPilot';
-    } else {
-      statusText.textContent = 'Main PC is off — opening the backup server';
-      label.textContent = 'Open backup server';
-    }
-    // A short beat so the line above is readable rather than a flash, then go.
-    setTimeout(function () { location.replace(target); }, kind === 'main' ? 400 : 1200);
-  }
-
-  function nobody() {
-    status.className = 'status offline';
-    statusText.textContent = 'Neither machine is reachable right now';
-    label.textContent = 'Try anyway';
-    btn.href = BASE;
-    btn.removeAttribute('aria-disabled');
-  }
-
-  function check() {
-    status.className = 'status checking';
-    statusText.textContent = 'Finding your machines…';
-    label.textContent = 'Checking…';
-    btn.setAttribute('aria-disabled', 'true');
-
-    Promise.all([readState(LOCAL_STATE), readState(VPS_STATE)])
-      .then(function (urls) {
-        statusText.textContent = 'Checking which one is up…';
-        return Promise.all([probe(urls[0], 'api/ping'), probe(urls[1], 'ping')])
-          .then(function (up) {
-            if (up[0]) return go(urls[0], 'main');
-            if (up[1]) return go(urls[1], 'backup');
-            nobody();
-          });
-      })
-      .catch(nobody);
-  }
-
-  retryBtn.addEventListener('click', check);
-  check();
+    })
+    .catch(nobody);
+}
+run();
 </script>
 </body>
 </html>
